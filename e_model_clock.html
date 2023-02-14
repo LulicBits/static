@@ -1,0 +1,435 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" style="overflow: hidden;">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>定时器</title>
+<link href="css/style.css" rel="stylesheet" type="text/css">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+<script src="js/jquery.min.js"></script>
+<script src="js/jquery.cookie.js" type="text/javascript" charset="utf-8"></script>
+<script src="js/lang.config.js"></script>
+<script src="js/lang.data.js"></script>
+<script src="js/style.js"></script>
+<script src="js/qwebchannel.js"></script>
+</head>
+
+<body style="background-color: #2f2f2f; text-align: center; overflow: hidden;">
+
+<script type="text/javascript">
+var widgetClock={
+	timeUp:function(){
+		if(window.nativeBridge && window.nativeBridge.onTimeUp){
+			window.nativeBridge.onTimeUp();
+		}
+	},
+	restart:function(){
+		if(window.nativeBridge && window.nativeBridge.onRestart){
+			window.nativeBridge.onRestart();
+		}
+	},
+	webcast:function(endTime,timeValue){
+		if(window.nativeBridge && window.nativeBridge.onStart){
+			window.nativeBridge.onStart(endTime,timeValue);
+		}
+	}
+}
+var btnText={
+	start:'start',
+	restart:'restart'
+}
+
+var languageInUrl = $.urlGet().lang;
+if(languageInUrl==='zh-CN'){
+	btnText={
+		start:'开始',
+		restart:'重新开始'
+	}
+} else if (languageInUrl === "zh-TW") {
+	btnText={
+		start:'開始',
+		restart:'重新開始'
+	}
+} else if (languageInUrl === 'es') {
+	btnText={
+		start:'Empezar',
+		restart:'Empezar de nuevo'
+	}
+}
+
+window.timeDelta = 0;
+
+	
+function Clock(initConfig){
+	var clock=this;
+	initConfig=initConfig || {};
+	clock.config={
+		defaultValue:initConfig.value || 0,
+		value:initConfig.value || 0,
+		canRestart:false,
+		endTime:'',
+	}
+	clock.$dom=$('<div class="clocker setting"></div>');
+	
+	function Num(numInitConfig){
+		var num=this;
+		numInitConfig=numInitConfig || {};
+		num.config={
+			min:numInitConfig.min || 0,
+			max:numInitConfig.max || 9,
+			value:0
+		}
+		num.$dom=$('<div class="numBox"></div>');
+		num.$numAddBtn=$('<div class="addBtn">+</div>').appendTo(num.$dom);
+		num.$numLessBtn=$('<div class="lessBtn">-</div>').appendTo(num.$dom);
+		num.$num=$('<div class="numText">0</div>').appendTo(num.$dom);
+		function NumPaper(npInitConfig){
+			var numPaper=this;
+			npInitConfig=npInitConfig || {};
+			numPaper.config={
+				value:''
+			}
+			numPaper.$dom=$('<div class="numPaper"></div>');
+			/*function Page(pInitConfig){
+				var page=this;
+				page.$dom=$('<div class="page"></div>');
+				page.$n=$('<div class="n"></div>').appendTo(page.$dom);
+				if(pInitConfig){
+					if(pInitConfig.className){
+						page.$dom.addClass(pInitConfig.className);
+					}
+				}
+			}*/
+			numPaper.$pageNowTop=$('<div class="pageNowTop"><div class="space">0</div></div>');
+			numPaper.$pageNowBottom=$('<div class="pageNowBottom"><div class="space">0</div></div>');
+			numPaper.$pageNextTop=$('<div class="pageNextTop"><div class="space">0</div></div>');
+			numPaper.$pageNextBottom=$('<div class="pageNextBottom"><div class="space">0</div></div>');
+			
+			numPaper.$pageNowTopV=$('<div class="v"></div>').appendTo(numPaper.$pageNowTop);
+			numPaper.$pageNowBottomV=$('<div class="v"></div>').appendTo(numPaper.$pageNowBottom);
+			numPaper.$pageNextTopV=$('<div class="v"></div>').appendTo(numPaper.$pageNextTop);
+			numPaper.$pageNextBottomV=$('<div class="v"></div>').appendTo(numPaper.$pageNextBottom);
+			numPaper.$dom.append(numPaper.$pageNextBottom,numPaper.$pageNowTop,numPaper.$pageNowBottom,numPaper.$pageNextTop);
+			
+			var npTimerList=[];
+			
+			numPaper.value=function(v,flipType){
+				
+				for(var i=0,len=npTimerList.length;i<len;i++){
+					clearTimeout(npTimerList[i]);
+				}
+				npTimerList=[];
+				var oldValue=numPaper.config.value;
+				var newValue=v;
+				numPaper.config.value=v;
+				function filpDown(){
+					numPaper.$pageNowTopV.html(oldValue || 0);
+					numPaper.$pageNowBottomV.html(oldValue || 0);
+					numPaper.$pageNowBottom.attr('class','pageNowBottom flipUp');
+					numPaper.$pageNextTop.attr('class','pageNextTop flipUp');
+					numPaper.$pageNextTopV.html(newValue);
+					numPaper.$pageNextBottomV.html(newValue);
+					
+					//setTimeout(function(){numPaper.config.value=v;},0)
+					npTimerList.push(setTimeout(function(){
+						numPaper.$pageNowTopV.html(newValue);
+						numPaper.$pageNowBottomV.html(newValue);
+						numPaper.$pageNowBottom.attr('class','pageNowBottom');
+						numPaper.$pageNextTop.attr('class','pageNextTop');
+					},800))
+				}
+				function filpUp(){
+					numPaper.$pageNowTopV.html(oldValue || 0);
+					numPaper.$pageNowBottomV.html(oldValue || 0);
+					numPaper.$pageNowTop.attr('class','pageNowTop flipDown');
+					numPaper.$pageNextBottom.attr('class','pageNextBottom flipDown');
+					numPaper.$pageNextTopV.html(newValue);
+					numPaper.$pageNextBottomV.html(newValue);
+					
+					//setTimeout(function(){numPaper.config.value=v;},0)
+					npTimerList.push(setTimeout(function(){
+						numPaper.$pageNowTopV.html(newValue);
+						numPaper.$pageNowBottomV.html(newValue);
+						numPaper.$pageNowTop.attr('class','pageNowTop');
+						numPaper.$pageNextBottom.attr('class','pageNextBottom');
+					},800))
+				}
+				function filpNone(){
+					numPaper.$pageNextTopV.html(newValue);
+					numPaper.$pageNextBottomV.html(newValue);
+					numPaper.$pageNowTopV.html(newValue);
+					numPaper.$pageNowBottomV.html(newValue);
+					numPaper.$pageNowTop.attr('class','pageNowTop');
+					numPaper.$pageNextBottom.attr('class','pageNextBottom');
+					
+				}
+				if(newValue!==oldValue){
+					
+					if(flipType!==undefined){
+						if(flipType){
+							filpUp();
+						}else{
+							filpDown();
+						}
+					}else{
+						filpNone();
+					}
+				}
+			}
+			numPaper.value(npInitConfig.value || 0);
+		}
+		num.numPaper=new NumPaper();
+		num.numPaper.$dom.appendTo(num.$dom)
+		num.$numAddBtn.on('click',function(){
+			var v=num.config.value+1;
+			if(v>num.config.max){
+				v=num.config.min
+			}
+			//num.value(v,false);
+			num.value(v);
+		})
+		num.$numLessBtn.on('click',function(){
+			var v=num.config.value-1;
+			if(v<num.config.min){
+				v=num.config.max
+			}
+			//num.value(v,true);
+			num.value(v);
+		})
+		num.value=function(v,filpType){
+			if(v===undefined){
+				return num.config.value;
+			}
+			if(v>num.config.max){
+				v=num.config.max;
+			}
+			if(v<num.config.min){
+				v=num.config.min
+			}
+			num.config.value=v;
+			num.numPaper.value(num.config.value,filpType);
+		}
+		num.disabled=function(v){
+			if(v){
+				num.$numAddBtn.css('display','none');
+				num.$numLessBtn.css('display','none');
+			}else{
+				num.$numAddBtn.css('display','');
+				num.$numLessBtn.css('display','');
+			}
+		}
+		
+	}
+	function NumGroup(groupInitConfig){
+		var numGroup=this;
+		groupInitConfig=groupInitConfig || {};
+		numGroup.config={
+			min:groupInitConfig.min || 0,
+			max:groupInitConfig.max || 59,
+			value:0
+		}
+		numGroup.$dom=$('<div class="numGroup"></div>');
+		numGroup.num2=new Num({
+			max:5
+		});
+		numGroup.num1=new Num();
+		numGroup.$dom.append(numGroup.num2.$dom,numGroup.num1.$dom);
+		numGroup.value=function(v,filpType){
+			if(v===undefined){
+				return numGroup.num1.value()+numGroup.num2.value()*10;
+			}
+			if(v>numGroup.config.max){
+				v=numGroup.config.max;
+			}
+			if(v<numGroup.config.min){
+				v=numGroup.config.min
+			}
+			numGroup.config.value=v;
+			numGroup.num2.value(Math.floor(numGroup.config.value/10),filpType);
+			numGroup.num1.value(numGroup.config.value%10,filpType);
+		}
+		numGroup.disabled=function(v){
+			if(v){
+				numGroup.num2.disabled(true);
+				numGroup.num1.disabled(true);
+			}else{
+				numGroup.num2.disabled(false);
+				numGroup.num1.disabled(false);
+			}
+		}
+	}
+	clock.minute=new NumGroup();
+	clock.$point=$('<div class="point">:</div>')
+	clock.second=new NumGroup();
+	clock.$dom.append(clock.minute.$dom,clock.$point,clock.second.$dom);
+	clock.value=function(v,filpType){
+		if(v===undefined){
+			return clock.minute.value()*60+clock.second.value();
+		}
+		if(v>59*60+59){
+			v=59*60+59;
+		}
+		if(v<0){
+			v=0
+		}
+		clock.config.value=v;
+		clock.minute.value(Math.floor(clock.config.value/60),filpType);
+		clock.second.value(clock.config.value%60,filpType);
+	}
+	clock.endTime=function(v){
+		clock.config.endTime=v;
+		clock.config.value=Math.ceil((clock.config.endTime-(timeNow()+window.timeDelta))/1000);
+		clock.countdownStart(false);
+	}
+	clock.config.autoCountdown=false;
+	clock.autoCountdown=function(){
+		if(clock.config.autoCountdown){
+			var timeValue=Math.ceil((clock.config.endTime-(timeNow()+window.timeDelta))/1000);
+			if(timeValue>=0){
+				clock.value(timeValue,true);
+				setTimeout(function(){
+					clock.autoCountdown();
+				},1000)
+			}else{
+				clock.value(0,true);
+				widgetClock.timeUp();
+				clock.config.autoCountdown=false;
+				if(clock.config.canRestart){
+					clock.$resetBtn.css('display','');
+				}
+				clock.$dom.attr('class','clocker timeup');
+			}
+		}
+	}
+	clock.countdownStart=function(byBtn){
+		clock.minute.disabled(true);
+		clock.second.disabled(true);
+		clock.config.autoCountdown=true;
+		if(byBtn){
+			clock.config.value=clock.value();
+			clock.config.endTime=clock.config.value*1000+(timeNow()+window.timeDelta)-1000;
+			widgetClock.webcast(clock.config.endTime,clock.config.value*1000);
+		}
+		clock.$dom.attr('class','clocker');
+		clock.$countdownStartBtn.css('display','none');
+		clock.autoCountdown();
+		clock.resize();
+	}
+	
+	clock.$countdownStartBtn=$('<div class="startBtn"><div class="label">'+btnText.start+'</div></div>');
+	
+	clock.$countdownStartBtn.on('click',function(){
+		clock.countdownStart(true);
+	});
+	clock.$countdownStartBtn.appendTo(clock.$dom);
+	
+	
+	
+	
+	clock.reset=function(){
+		clock.config.autoCountdown=false;
+		clock.minute.disabled(false);
+		clock.second.disabled(false);
+		clock.value(clock.config.defaultValue);
+		clock.$dom.attr('class','clocker setting');
+		clock.$resetBtn.css('display','none');
+		clock.$countdownStartBtn.css('display','');
+		clock.resize();
+	}
+	
+	
+	clock.$resetBtn=$('<div class="resetBtn"><div class="label">'+btnText.restart+'</div></div>').css('display','none');
+	clock.$resetBtn.on('click',function(){
+		clock.reset();
+		widgetClock.restart();
+	});
+	clock.$resetBtn.appendTo(clock.$dom);
+	
+	
+	
+	var $window=$(window)
+	clock.resize=function(){
+		var clockFontSize=parseInt(clock.$dom.css('font-size'));
+        var widthScale=$window.width()/(clock.$dom.outerWidth()/(clockFontSize/100));
+        var heightScale=$window.height()/(clock.$dom.outerHeight()/(clockFontSize/100));
+        var useScale=1;
+        if(widthScale<=heightScale){
+        	useScale=widthScale;
+        }else{
+        	useScale=heightScale
+        }
+        //console.log('us',useScale)
+    	clock.$dom.css('font-size',100*useScale+'px');
+        
+		
+	}
+    $window.resize(function(){
+        clock.resize();
+    });
+	
+	
+	
+	clock.value(clock.config.value);
+	
+}
+var clock=new Clock({
+	value:5*60
+//	value:3
+});
+$('body').append(clock.$dom);
+clock.resize();
+//clock.config.canRestart=true;
+//clock.value(47*60+21)
+//clock.countdownStart();
+
+window.canRestart=function(status){
+    if(status!==undefined){
+        clock.config.canRestart=status;
+    }
+}
+window.openClockSeter=function(valueTime){
+	clock.config.defaultValue=Math.ceil(valueTime/1000)
+	clock.config.value=Math.ceil(valueTime/1000)
+    clock.reset();
+}
+window.openClockTimer=function(endTime){
+	clock.endTime(endTime);
+}
+
+if (window.widget){
+	if (window.nativeBridge.reset) {
+		window.nativeBridge.reset.connect(function(time){
+			window.canRestart(true);
+			window.openClockSeter(time);
+		});
+	}
+	if (window.nativeBridge.showClockSeter) {
+		window.nativeBridge.showClockSeter.connect(window.openClockSeter);
+	}
+	if (window.nativeBridge.openClockTimer) {
+		window.nativeBridge.openClockTimer.connect(window.openClockTimer);
+	}
+	window.nativeBridge.onDocReady();
+}else{
+	new QWebChannel(qt.webChannelTransport, function(channel){
+		window.nativeBridge = channel.objects.nativeBridge;
+
+		channel.objects.widget.serverDate(function(time){
+			window.timeDelta = time*1000 - (new Date()).getTime();
+		});
+		
+		window.nativeBridge.reset.connect(function(time){
+			window.canRestart(true);
+			window.openClockSeter(time);
+		});
+		window.nativeBridge.showClockSeter.connect(window.openClockSeter);
+		window.nativeBridge.openClockTimer.connect(window.openClockTimer);
+
+		window.nativeBridge.onDocReady();
+	});
+}
+	
+</script>
+	
+</body>
+</html>
